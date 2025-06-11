@@ -1,19 +1,564 @@
-<!doctype html>
-<html>
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
-		<title>My static Space</title>
-		<link rel="stylesheet" href="style.css" />
-	</head>
-	<body>
-		<div class="card">
-			<h1>Welcome to your static Space!</h1>
-			<p>You can modify this app directly by editing <i>index.html</i> in the Files and versions tab.</p>
-			<p>
-				Also don't forget to check the
-				<a href="https://huggingface.co/docs/hub/spaces" target="_blank">Spaces documentation</a>.
-			</p>
-		</div>
-	</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Twitter Poster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        .char-count-warning {
+            color: #f39c12;
+        }
+        
+        .char-count-danger {
+            color: #e74c3c;
+        }
+        
+        .tweet-container {
+            transition: all 0.3s ease;
+        }
+        
+        .tweet-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-10">
+            <div class="flex items-center">
+                <i class="fab fa-twitter text-blue-500 text-4xl mr-3"></i>
+                <h1 class="text-3xl font-bold text-gray-800">Auto Twitter Poster</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="loginBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-medium transition duration-300">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Connect Twitter
+                </button>
+                <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-full font-medium transition duration-300">
+                    <i class="fas fa-question-circle mr-2"></i>Help
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Tweet Composer -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Compose Tweet</h2>
+                
+                <div class="mb-6">
+                    <label for="tweetText" class="block text-sm font-medium text-gray-700 mb-2">Tweet Content</label>
+                    <textarea id="tweetText" rows="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300 resize-none" placeholder="What's happening?"></textarea>
+                    <div class="flex justify-between items-center mt-2">
+                        <div id="charCount" class="text-sm text-gray-500">280 characters remaining</div>
+                        <div class="flex space-x-2">
+                            <button class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                <i class="fas fa-image"></i>
+                            </button>
+                            <button class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                <i class="fas fa-film"></i>
+                            </button>
+                            <button class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                <i class="fas fa-poll"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scheduling Options -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Scheduling Options</h3>
+                    
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex items-center">
+                            <input type="radio" id="postNow" name="postingOption" value="now" checked class="form-radio h-4 w-4 text-blue-600 transition duration-300">
+                            <label for="postNow" class="ml-2 block text-sm text-gray-700">Post Now</label>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <input type="radio" id="schedulePost" name="postingOption" value="schedule" class="form-radio h-4 w-4 text-blue-600 transition duration-300">
+                            <label for="schedulePost" class="ml-2 block text-sm text-gray-700">Schedule for later</label>
+                        </div>
+                        
+                        <div id="scheduleControls" class="pl-6 hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label for="scheduleDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                    <input type="date" id="scheduleDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300">
+                                </div>
+                                <div>
+                                    <label for="scheduleTime" class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                                    <input type="time" id="scheduleTime" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="repeatOption" class="block text-sm font-medium text-gray-700 mb-2">Repeat</label>
+                                <select id="repeatOption" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-300">
+                                    <option value="none">No repeat</option>
+                                    <option value="hourly">Every hour</option>
+                                    <option value="daily">Every day</option>
+                                    <option value="weekly">Every week</option>
+                                    <option value="monthly">Every month</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Post Button -->
+                <div class="flex justify-end">
+                    <button id="postTweet" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-full font-medium transition duration-300 flex items-center">
+                        <i class="fas fa-paper-plane mr-2"></i> Post Tweet
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Scheduled Tweets -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Scheduled Tweets</h2>
+                    <button id="refreshTweets" class="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                
+                <div id="scheduledTweets" class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    <!-- Placeholder when no tweets are scheduled -->
+                    <div class="flex flex-col items-center justify-center py-10 text-gray-400">
+                        <i class="far fa-calendar-alt text-4xl mb-3"></i>
+                        <p class="text-center">No scheduled tweets yet.<br>Schedule your first tweet!</p>
+                    </div>
+                    
+                    <!-- Example tweet (will be hidden when JavaScript runs) -->
+                    <div class="tweet-container bg-gray-50 border border-gray-200 rounded-lg p-4 hidden">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-sm font-medium text-gray-700">Example tweet</span>
+                            <div class="flex space-x-2">
+                                <button class="edit-tweet p-1 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                    <i class="fas fa-pencil-alt text-xs"></i>
+                                </button>
+                                <button class="delete-tweet p-1 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-gray-800 mb-3">This is an example scheduled tweet.</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">
+                                <i class="far fa-clock mr-1"></i>
+                                <span class="tweet-time">May 15, 2023 at 2:30 PM</span>
+                            </span>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Pending</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Twitter Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">Connect Twitter Account</h3>
+                    <button id="closeAuthModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <p class="text-gray-600 mb-6">To schedule and post tweets, please connect your Twitter account. We'll only request the permissions needed to post tweets on your behalf.</p>
+                
+                <div class="mb-6">
+                    <button id="twitterAuthBtn" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-300">
+                        <i class="fab fa-twitter text-blue-500 mr-2"></i>
+                        Sign in with Twitter
+                    </button>
+                </div>
+                
+                <p class="text-xs text-gray-500">We'll never post without your permission or share your account details.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Notification -->
+    <div id="successToast" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center z-50 transform transition-transform duration-300 translate-y-full">
+        <i class="fas fa-check-circle mr-2"></i>
+        <span id="successMessage">Tweet successfully scheduled!</span>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const tweetText = document.getElementById('tweetText');
+            const charCount = document.getElementById('charCount');
+            const postNowOption = document.getElementById('postNow');
+            const schedulePostOption = document.getElementById('schedulePost');
+            const scheduleControls = document.getElementById('scheduleControls');
+            const postTweetBtn = document.getElementById('postTweet');
+            const scheduledTweetsList = document.getElementById('scheduledTweets');
+            const refreshTweetsBtn = document.getElementById('refreshTweets');
+            const loginBtn = document.getElementById('loginBtn');
+            const authModal = document.getElementById('authModal');
+            const closeAuthModal = document.getElementById('closeAuthModal');
+            const twitterAuthBtn = document.getElementById('twitterAuthBtn');
+            const successToast = document.getElementById('successToast');
+            const successMessage = document.getElementById('successMessage');
+            
+            // Example tweets data (in a real app, this would come from a backend)
+            let scheduledTweets = [
+                {
+                    id: 2,
+                    content: "This is my second scheduled tweet. I'm testing this awesome auto-poster! 🚀 #TwitterTools",
+                    scheduledFor: "2023-06-02T15:45:00",
+                    status: "pending"
+                },
+                {
+                    id: 1,
+                    content: "Just scheduled my first tweet with Auto Twitter Poster! This is so convenient. 😊",
+                    scheduledFor: "2023-06-01T10:30:00",
+                    status: "pending"
+                }
+            ];
+            
+            // Character count update
+            tweetText.addEventListener('input', updateCharCount);
+            
+            function updateCharCount() {
+                const currentLength = tweetText.value.length;
+                const remaining = 280 - currentLength;
+                
+                charCount.textContent = `${remaining} characters remaining`;
+                
+                // Update styling based on remaining characters
+                if (remaining < 50 && remaining >= 20) {
+                    charCount.className = "text-sm char-count-warning";
+                } else if (remaining < 20) {
+                    charCount.className = "text-sm char-count-danger";
+                } else {
+                    charCount.className = "text-sm text-gray-500";
+                }
+                
+                // Disable tweet button if over limit
+                postTweetBtn.disabled = currentLength > 280;
+                if (postTweetBtn.disabled) {
+                    postTweetBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                    postTweetBtn.classList.add('bg-blue-300', 'cursor-not-allowed');
+                } else {
+                    postTweetBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                    postTweetBtn.classList.remove('bg-blue-300', 'cursor-not-allowed');
+                }
+            }
+            
+            // Show/hide schedule controls
+            postNowOption.addEventListener('change', function() {
+                scheduleControls.classList.add('hidden');
+            });
+            
+            schedulePostOption.addEventListener('change', function() {
+                scheduleControls.classList.remove('hidden');
+                
+                // Set default date/time (next hour)
+                const now = new Date();
+                const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+                
+                const dateStr = nextHour.toISOString().split('T')[0];
+                const timeStr = `${String(nextHour.getHours()).padStart(2, '0')}:${String(nextHour.getMinutes()).padStart(2, '0')}`;
+                
+                document.getElementById('scheduleDate').value = dateStr;
+                document.getElementById('scheduleTime').value = timeStr;
+            });
+            
+            // Post tweet handler
+            postTweetBtn.addEventListener('click', function() {
+                const content = tweetText.value.trim();
+                
+                if (content.length === 0) {
+                    showError("Please enter some text for your tweet");
+                    return;
+                }
+                
+                if (content.length > 280) {
+                    showError("Tweet exceeds 280 character limit");
+                    return;
+                }
+                
+                let scheduledFor = null;
+                
+                if (schedulePostOption.checked) {
+                    const date = document.getElementById('scheduleDate').value;
+                    const time = document.getElementById('scheduleTime').value;
+                    
+                    if (!date || !time) {
+                        showError("Please select both date and time for scheduling");
+                        return;
+                    }
+                    
+                    scheduledFor = new Date(`${date}T${time}:00`).toISOString();
+                    
+                    // Check if scheduled time is in the past
+                    if (new Date(scheduledFor) < new Date()) {
+                        showError("Please schedule for a future date/time");
+                        return;
+                    }
+                }
+                
+                // Create new tweet object (in a real app, this would call an API)
+                const repeatOption = document.getElementById('repeatOption').value;
+                const newTweet = {
+                    id: Date.now(),
+                    content: content,
+                    scheduledFor: scheduledFor || new Date().toISOString(),
+                    status: scheduledFor ? "pending" : "posted",
+                    repeat: repeatOption !== 'none' ? repeatOption : null,
+                    originalDate: scheduledFor || new Date().toISOString()
+                };
+                
+                if (scheduledFor) {
+                    scheduledTweets.unshift(newTweet);
+                    renderScheduledTweets();
+                    showSuccess("Tweet successfully scheduled!");
+                } else {
+                    showSuccess("Tweet posted successfully!");
+                    // In a real app, you would post to Twitter API here
+                }
+                
+                // Reset form
+                tweetText.value = "";
+                updateCharCount();
+                postNowOption.checked = true;
+                scheduleControls.classList.add('hidden');
+            });
+            
+            // Render scheduled tweets
+            function renderScheduledTweets() {
+                if (scheduledTweets.length === 0) {
+                    scheduledTweetsList.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-10 text-gray-400">
+                            <i class="far fa-calendar-alt text-4xl mb-3"></i>
+                            <p class="text-center">No scheduled tweets yet.<br>Schedule your first tweet!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                scheduledTweetsList.innerHTML = scheduledTweets.map(tweet => `
+                    <div class="tweet-container bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-sm font-medium text-gray-700">Tweet #${tweet.id}</span>
+                            <div class="flex space-x-2">
+                                <button onclick="editTweet(${tweet.id})" class="edit-tweet p-1 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                    <i class="fas fa-pencil-alt text-xs"></i>
+                                </button>
+                                <button onclick="deleteTweet(${tweet.id})" class="delete-tweet p-1 text-gray-500 hover:text-red-500 rounded-full hover:bg-gray-100 transition duration-300">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-gray-800 mb-3">${tweet.content}</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500">
+                                <i class="far fa-clock mr-1"></i>
+                                <span class="tweet-time">${formatDateTime(tweet.scheduledFor)}</span>
+                            </span>
+                            <span class="text-xs ${tweet.status === 'posted' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'} px-2 py-1 rounded-full">${tweet.status === 'posted' ? 'Posted' : 'Pending'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Helper to format date/time
+            function formatDateTime(isoString) {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                }) + ' at ' + date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+            }
+            
+            // Edit tweet handler (global function as it's called from onclick)
+            window.editTweet = function(id) {
+                const tweet = scheduledTweets.find(t => t.id === id);
+                if (!tweet) return;
+                
+                // Populate form
+                tweetText.value = tweet.content;
+                updateCharCount();
+                
+                // Set to schedule mode
+                schedulePostOption.checked = true;
+                scheduleControls.classList.remove('hidden');
+                
+                const dateTime = new Date(tweet.scheduledFor);
+                const dateStr = dateTime.toISOString().split('T')[0];
+                const timeStr = `${String(dateTime.getHours()).padStart(2, '0')}:${String(dateTime.getMinutes()).padStart(2, '0')}`;
+                
+                document.getElementById('scheduleDate').value = dateStr;
+                document.getElementById('scheduleTime').value = timeStr;
+                
+                // Remove the tweet from scheduled list
+                scheduledTweets = scheduledTweets.filter(t => t.id !== id);
+                renderScheduledTweets();
+                
+                // Scroll to form
+                tweetText.focus();
+            };
+            
+            // Delete tweet handler (global function as it's called from onclick)
+            window.deleteTweet = function(id) {
+                if (confirm("Are you sure you want to delete this scheduled tweet?")) {
+                    scheduledTweets = scheduledTweets.filter(t => t.id !== id);
+                    renderScheduledTweets();
+                }
+            };
+            
+            // Refresh tweets handler
+            refreshTweetsBtn.addEventListener('click', function() {
+                // In a real app, this would fetch from a backend
+                // For demo, we'll just render the existing tweets
+                renderScheduledTweets();
+                showSuccess("Tweets refreshed!");
+            });
+            
+            // Show auth modal
+            loginBtn.addEventListener('click', function() {
+                authModal.classList.remove('hidden');
+            });
+            
+            // Close auth modal
+            closeAuthModal.addEventListener('click', function() {
+                authModal.classList.add('hidden');
+            });
+            
+            // Twitter auth button handler
+            twitterAuthBtn.addEventListener('click', function() {
+                // In a real app, this would initiate OAuth flow with Twitter API
+                showSuccess("Twitter account connected successfully!");
+                authModal.classList.add('hidden');
+                loginBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Connected';
+                loginBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                loginBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+            });
+            
+            // Show success notification
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successToast.classList.remove('translate-y-full');
+                successToast.classList.add('translate-y-0');
+                
+                setTimeout(() => {
+                    successToast.classList.remove('translate-y-0');
+                    successToast.classList.add('translate-y-full');
+                }, 3000);
+            }
+            
+            // Show error (simple alert for demo)
+            function showError(message) {
+                alert("Error: " + message);
+            }
+            
+            // Initialize
+            updateCharCount();
+            renderScheduledTweets();
+
+            // Function to check for recurring tweets
+            function checkRecurringTweets() {
+                const now = new Date();
+                
+                scheduledTweets.forEach(tweet => {
+                    if (tweet.repeat && tweet.status === 'posted') {
+                        const lastPostDate = new Date(tweet.scheduledFor);
+                        let shouldRepost = false;
+                        
+                        switch(tweet.repeat) {
+                            case 'hourly':
+                                shouldRepost = now.getTime() - lastPostDate.getTime() >= 60 * 60 * 1000;
+                                break;
+                            case 'daily':
+                                shouldRepost = now.getTime() - lastPostDate.getTime() >= 24 * 60 * 60 * 1000;
+                                break;
+                            case 'weekly':
+                                shouldRepost = now.getTime() - lastPostDate.getTime() >= 7 * 24 * 60 * 60 * 1000;
+                                break;
+                            case 'monthly':
+                                // Approximate month as 30 days
+                                shouldRepost = now.getTime() - lastPostDate.getTime() >= 30 * 24 * 60 * 60 * 1000;
+                                break;
+                        }
+                        
+                        if (shouldRepost) {
+                            // Create new posting of the same tweet
+                            const newPostDate = new Date(tweet.originalDate);
+                            const timeDiff = now.getTime() - newPostDate.getTime();
+                            
+                            // Calculate next posting date
+                            while (newPostDate.getTime() < now.getTime()) {
+                                switch(tweet.repeat) {
+                                    case 'hourly':
+                                        newPostDate.setHours(newPostDate.getHours() + 1);
+                                        break;
+                                    case 'daily':
+                                        newPostDate.setDate(newPostDate.getDate() + 1);
+                                        break;
+                                    case 'weekly':
+                                        newPostDate.setDate(newPostDate.getDate() + 7);
+                                        break;
+                                    case 'monthly':
+                                        newPostDate.setMonth(newPostDate.getMonth() + 1);
+                                        break;
+                                }
+                            }
+                            
+                            const newTweet = {
+                                ...tweet,
+                                id: Date.now(),
+                                scheduledFor: newPostDate.toISOString(),
+                                status: 'pending'
+                            };
+                            
+                            scheduledTweets.unshift(newTweet);
+                            renderScheduledTweets();
+                        }
+                    }
+                });
+            }
+
+            // Check for recurring tweets every minute
+            setInterval(checkRecurringTweets, 60000);
+        });
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ChelleG/auto-twitter-poster" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
 </html>
